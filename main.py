@@ -4,6 +4,7 @@ import asyncio
 import httpx 
 import socket
 import ipaddress
+import ssl
 from dotenv import load_dotenv
 from html.parser import HTMLParser
 from urllib.parse import urlparse
@@ -64,8 +65,13 @@ def _is_host_allowed(hostname: str) -> bool:
         # DNS error or other resolution problem -> treat as unsafe
         return False
 
-async def fetch_webpage_content(url: str) -> str:
-    """Fetch and extract text content from a webpage. Performs host validation to mitigate SSRF."""
+async def fetch_webpage_content(url: str, verify_ssl: bool = True) -> str:
+    """Fetch and extract text content from a webpage. Performs host validation to mitigate SSRF.
+    
+    Args:
+        url: The URL to fetch
+        verify_ssl: Whether to verify SSL certificates (default True)
+    """
     parsed = urlparse(url if url.startswith(("http://", "https://")) else f"https://{url}")
     if parsed.scheme not in ("http", "https"):
         return "Error: unsupported URL scheme"
@@ -79,13 +85,25 @@ async def fetch_webpage_content(url: str) -> str:
     
     try:
         headers = {"User-Agent": "Mozilla/5.0 (compatible; webpage-summarizer/1.0)"}
+        
+        if not verify_ssl:
+            import warnings
+            warnings.warn(f"SSL certificate verification disabled for {url}. This is insecure!", Warning)
+        
         async with httpx.AsyncClient(
             headers=headers,
             timeout=10.0,
-            follow_redirects=True
+            follow_redirects=True,
+            verify=verify_ssl
         ) as client:
-            response = await client.get(parsed.geturl())
-            response.raise_for_status()
+            try:
+                response = await client.get(parsed.geturl())
+                response.raise_for_status()
+            except ssl.SSLError as ssl_err:
+                if verify_ssl:
+                    return (f"Error: SSL certificate verification failed. If you trust this site, "
+                           f"you can retry with SSL verification disabled. Original error: {str(ssl_err)}")
+                raise
             
             html_content = response.text
             extractor = HTMLTextExtractor()
@@ -185,13 +203,19 @@ async def summarize_content(kernel: Kernel, content: str) -> str:
     except Exception as e:
         return f"Error during summarization: {str(e)}"
 
-async def summarize_url(kernel: Kernel, url: str) -> bool:
+async def summarize_url(kernel: Kernel, url: str, verify_ssl: bool = True) -> bool:
     """Summarize a single URL and return True to continue, False to exit."""
     if not url.startswith(("http://", "https://")):
         url = "https://" + url
     
     print(f"\nFetching content from {url}...")
-    content = await fetch_webpage_content(url)
+    content = await fetch_webpage_content(url, verify_ssl=verify_ssl)
+    
+    if content.startswith("Error: SSL certificate verification failed"):
+        print(f"\n{content}")
+        retry = input("\nWould you like to retry without SSL verification? (y/N): ").strip().lower()
+        if retry == 'y':
+            content = await fetch_webpage_content(url, verify_ssl=False)
     
     if content.startswith("Error"):
         print(f"Failed to fetch content: {content}")
