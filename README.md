@@ -32,15 +32,9 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-If you don't have a `requirements.txt`, install the expected dependencies manually:
-
-```bash
-pip install semantic-kernel httpx python-dotenv
-```
-
 ## Usage
 
-1. Create an environment file `.env.local` in the project root and set your OpenAI API key:
+1. Create an environment file `.env.local` or rename the existing file `.env` in the project root and set your OpenAI API key:
 
 ```text
 OPENAI_API_KEY=sk-...your-key-here...
@@ -53,6 +47,8 @@ python main.py
 ```
 
 3. Enter the URL you want to summarize when prompted (for example: `https://fredmichael.com`).
+
+4. Type 'exit' to end the script.
 
 ## Security and privacy notes
 
