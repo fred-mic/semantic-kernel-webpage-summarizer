@@ -209,28 +209,30 @@ async def summarize_url(kernel: Kernel, url: str, verify_ssl: bool = True) -> bo
         url = "https://" + url
     
     print(f"\nFetching content from {url}...")
-    content = await fetch_webpage_content(url, verify_ssl=verify_ssl)
-    
-    if content.startswith("Error: SSL certificate verification failed"):
-        print(f"\n{content}")
-        retry = input("\nWould you like to retry without SSL verification? (y/N): ").strip().lower()
-        if retry == 'y':
-            content = await fetch_webpage_content(url, verify_ssl=False)
-    
-    if content.startswith("Error"):
-        print(f"Failed to fetch content: {content}")
-        return True
-    
-    print(f"Successfully fetched {len(content)} characters of content")
-    print("\nGenerating summary with OpenAI...")
-    
-    summary = await summarize_content(kernel, content)
-    
-    print("\n" + "=" * 60)
-    print("SUMMARY")
-    print("=" * 60)
-    print(summary)
-    print("=" * 60)
+    try:
+        content = await fetch_webpage_content(url, verify_ssl=verify_ssl)
+        if content.startswith("Error: HTTP [SSL: CERTIFICATE_VERIFY_FAILED]"):
+            print(f"\n{content}")
+            retry = input("\nWould you like to retry without SSL verification? (y/N): ").strip().lower()
+            if retry == 'y':
+                content = await fetch_webpage_content(url, verify_ssl=False)
+        
+        if content.startswith("Error"):
+            print(f"Failed to fetch content: {content}")
+            return True
+        
+        print(f"Successfully fetched {len(content)} characters of content")
+        print("\nGenerating summary with OpenAI...")
+        
+        summary = await summarize_content(kernel, content)
+        
+        print("\n" + "=" * 60)
+        print("SUMMARY")
+        print("=" * 60)
+        print(summary)
+        print("=" * 60)
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
     return True
 
 async def main():
