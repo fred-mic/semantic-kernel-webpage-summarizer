@@ -212,7 +212,6 @@ async def summarize_url(kernel: Kernel, url: str, verify_ssl: bool = True) -> bo
     try:
         content = await fetch_webpage_content(url, verify_ssl=verify_ssl)
         if content.startswith("Error: HTTP [SSL: CERTIFICATE_VERIFY_FAILED]"):
-            print(f"\n{content}")
             retry = input("\nWould you like to retry without SSL verification? (y/N): ").strip().lower()
             if retry == 'y':
                 content = await fetch_webpage_content(url, verify_ssl=False)
