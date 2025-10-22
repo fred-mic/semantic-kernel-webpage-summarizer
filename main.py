@@ -185,6 +185,30 @@ async def summarize_content(kernel: Kernel, content: str) -> str:
     except Exception as e:
         return f"Error during summarization: {str(e)}"
 
+async def summarize_url(kernel: Kernel, url: str) -> bool:
+    """Summarize a single URL and return True to continue, False to exit."""
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    
+    print(f"\nFetching content from {url}...")
+    content = await fetch_webpage_content(url)
+    
+    if content.startswith("Error"):
+        print(f"Failed to fetch content: {content}")
+        return True
+    
+    print(f"Successfully fetched {len(content)} characters of content")
+    print("\nGenerating summary with OpenAI...")
+    
+    summary = await summarize_content(kernel, content)
+    
+    print("\n" + "=" * 60)
+    print("SUMMARY")
+    print("=" * 60)
+    print(summary)
+    print("=" * 60)
+    return True
+
 async def main():
     # Get API key from environment
     api_key = os.getenv("OPENAI_API_KEY")
@@ -203,31 +227,30 @@ async def main():
     
     print("=" * 60)
     print("Web Page Summarizer with Semantic Kernel")
+    print("Enter 'exit' to quit, or Ctrl+C")
     print("=" * 60)
     
-    # Get URL from user
-    url = input("\nEnter the URL of the webpage to summarize: ").strip()
-    
-    if not url.startswith(("http://", "https://")):
-        url = "https://" + url
-    
-    print(f"\nFetching content from {url}...")
-    content = await fetch_webpage_content(url)
-    
-    if content.startswith("Error"):
-        print(f"Failed to fetch content: {content}")
+    try:
+        while True:
+            try:
+                # Get URL from user
+                url = input("\nEnter the URL of the webpage to summarize: ").strip()
+                
+                if url.lower() == 'exit':
+                    print("\nExiting...")
+                    break
+                
+                if not await summarize_url(kernel, url):
+                    break
+                    
+            except Exception as e:
+                print(f"\nError processing URL: {str(e)}")
+                print("Try another URL or type 'exit' to quit")
+                continue
+                
+    except KeyboardInterrupt:
+        print("\n\nReceived interrupt signal. Exiting gracefully...")
         return
-    
-    print(f"Successfully fetched {len(content)} characters of content")
-    print("\nGenerating summary with OpenAI...")
-    
-    summary = await summarize_content(kernel, content)
-    
-    print("\n" + "=" * 60)
-    print("SUMMARY")
-    print("=" * 60)
-    print(summary)
-    print("=" * 60)
 
 if __name__ == "__main__":
     asyncio.run(main())
